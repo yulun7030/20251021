@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Sketch</title>
+
+    <link rel="stylesheet" type="text/css" href="style.css">
+
+    <script src="libraries/p5.min.js"></script>
+    <script src="libraries/p5.sound.min.js"></script>
+
+    <!-- 新增：滑出選單樣式（也可移到 style.css） -->
+    <style>
+      /* 左上滑出選單 */
+      .slide-menu {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 9999;
+        font-family: sans-serif;
+      }
+
+      .menu-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        border: none;
+        padding: 8px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+      }
+
+      .menu-panel {
+        margin-top: 8px;
+        width: 200px;
+        max-height: 0;
+        overflow: hidden;
+        background: #fff;
+        color: #111;
+        border-radius: 8px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+        transition: max-height 300ms ease;
+      }
+
+      .menu-panel.open {
+        max-height: 320px;
+      }
+
+      .menu-list {
+        list-style: none;
+        margin: 0;
+        padding: 8px;
+      }
+
+      .menu-list li {
+        padding: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .menu-list li:hover {
+        background: #f0f0f0;
+      }
+
+      .menu-list li.active {
+        background: #e6f0ff;
+      }
+
+      /* 作品顯示（將右下欄改為背景顯示） */
+      body.project-bg {
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+        transition: background-image 300ms ease, background-color 300ms ease;
+      }
+
+      /* 選單下方顯示當前作品名稱 */
+      .current-caption {
+        margin-top: 8px;
+        color: #222;
+        font-size: 13px;
+      }
+
+      /* 若需要在頁面上保留可點選的畫面遮罩避免背景與畫布干擾，可調整以下 */
+      .has-bg-overlay {
+        background-color: rgba(0,0,0,0.05);
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- 新增：左上滑出選單 -->
+    <div class="slide-menu" id="slideMenu">
+      <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="menuPanel">
+        選擇作品 ▾
+      </button>
+
+      <div class="menu-panel" id="menuPanel" role="menu">
+        <ul class="menu-list" id="menuList">
+          <li data-src="images/work1.jpg" data-caption="作品一" class="active">作品一</li>
+          <li data-src="images/work2.jpg" data-caption="作品二">作品二</li>
+          <li data-src="images/work3.jpg" data-caption="作品三">作品三</li>
+        </ul>
+
+        <!-- 顯示當前作品名稱（原右下欄已移除） -->
+        <div class="current-caption" id="currentCaption">作品一</div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/roughjs@4.4.1/bundled/rough.min.js"></script>
+    <script src="sketch.js"></script>
+
+    <!-- 新增：選單行為腳本（改為把照片設為 page 背景，已移除右下作品欄） -->
+    <script>
+      (function () {
+        const menuToggle = document.getElementById('menuToggle');
+        const menuPanel = document.getElementById('menuPanel');
+        const menuList = document.getElementById('menuList');
+        const items = Array.from(menuList.querySelectorAll('li'));
+        const caption = document.getElementById('currentCaption');
+
+        function openMenu() {
+          menuPanel.classList.add('open');
+          menuToggle.setAttribute('aria-expanded', 'true');
+        }
+        function closeMenu() {
+          menuPanel.classList.remove('open');
+          menuToggle.setAttribute('aria-expanded', 'false');
+        }
+        function toggleMenu() {
+          menuPanel.classList.toggle('open');
+          const expanded = menuPanel.classList.contains('open');
+          menuToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+
+        menuToggle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleMenu();
+        });
+
+        // 點選作品切換：將照片設為 body 背景（已移除右下作品欄）
+        menuList.addEventListener('click', (e) => {
+          const li = e.target.closest('li');
+          if (!li) return;
+          const src = li.dataset.src;
+          const text = li.dataset.caption || li.textContent.trim();
+          if (src) {
+            document.body.classList.add('project-bg');
+            document.body.style.backgroundImage = `url("${src}")`;
+            // 若需要淡入效果，可先清除再加回 (簡單處理)
+            // document.body.style.backgroundImage = 'none';
+            // setTimeout(()=> document.body.style.backgroundImage = `url("${src}")`, 20);
+          }
+          items.forEach(i => i.classList.remove('active'));
+          li.classList.add('active');
+          if (caption) caption.textContent = text;
+          closeMenu();
+        });
+
+        // 點擊畫面其他地方關閉選單
+        document.addEventListener('click', (e) => {
+          if (!document.getElementById('slideMenu').contains(e.target)) {
+            closeMenu();
+          }
+        });
+
+        // Esc 關閉
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') closeMenu();
+        });
+
+        // 可選：初始化為第一項（並設定背景）
+        if (items.length) {
+          const first = items[0];
+          const src = first.dataset.src;
+          const text = first.dataset.caption || first.textContent.trim();
+          if (src) {
+            document.body.classList.add('project-bg');
+            document.body.style.backgroundImage = `url("${src}")`;
+          }
+          if (caption) caption.textContent = text;
+        }
+      })();
+    </script>
+  </body>
+</html>
